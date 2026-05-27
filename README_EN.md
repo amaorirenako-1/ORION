@@ -39,6 +39,50 @@ The default `requirements.txt` pins `transformers<4.52` to reduce the risk of to
 
 If you are using the four final selected checkpoints, first follow [docs/CHECKPOINT_IMPORT_EN.md](docs/CHECKPOINT_IMPORT_EN.md) to import the checkpoint weights and matching `resolved_config.json` files into an independent model directory. This import process copies only released model artifacts and does not depend on earlier evaluation scripts, attention scripts, or old experiment configs.
 
+### Prepare the NTv3 Base Model
+
+The released ORION checkpoints contain LoRA/DoRA adapter weights and the classifier head, but not the full NTv3 650M backbone. The runtime host must prepare the NTv3 650M pretrained base model and point `model.name` in the config to that directory.
+
+Check the base model directory:
+
+```bash
+BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+ls "$BASE_MODEL"
+```
+
+It should contain the HuggingFace model files, such as `config.json`, tokenizer files, custom modeling Python files, and model weight files.
+
+The public `resolved_config.json` uses a placeholder:
+
+```json
+"name": "/path/to/NTv3_650M_pre"
+```
+
+For local execution, generate `resolved_config.local.json` instead of modifying the released config in place:
+
+```bash
+MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+
+for cfg in "$MODEL_ROOT"/*/resolved_config.json; do
+  local_cfg="${cfg%.json}.local.json"
+  python - "$cfg" "$local_cfg" "$BASE_MODEL" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+src, dst, base_model = map(Path, sys.argv[1:])
+obj = json.loads(src.read_text())
+obj["model"]["name"] = str(base_model)
+obj["model"]["local_files_only"] = True
+dst.write_text(json.dumps(obj, indent=2) + "\n")
+print(dst)
+PY
+done
+```
+
+Then point `config` in `configs/checkpoints.local.json` to `resolved_config.local.json`.
+
 Copy and edit the example registry:
 
 ```bash
@@ -55,7 +99,7 @@ Example:
       "description": "Default high-confidence K562 checkpoint",
       "model_backend": "orion",
       "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json",
+      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.local.json",
       "threshold": 0.463
     }
   }
@@ -66,7 +110,7 @@ Fields:
 
 - `default_checkpoint`: label used when `--checkpoint-label` is omitted.
 - `checkpoint`: model weights file.
-- `config`: matching `resolved_config.json` or YAML.
+- `config`: local runtime config for the checkpoint. Prefer `resolved_config.local.json`, where `model.name` points to the local NTv3 650M base model path.
 - `threshold`: recorded calibrated classification threshold; peak calling does not use it by default.
 - `model_backend`: currently `orion`.
 

@@ -39,6 +39,50 @@ pip install "MACS3>=3.0"
 
 如果你要使用我们最终选定的四个 checkpoint，请先按照 [docs/CHECKPOINT_IMPORT_CN.md](docs/CHECKPOINT_IMPORT_CN.md) 把 checkpoint 和对应的 `resolved_config.json` 导入到独立模型目录中。该流程只复制模型权重和 resolved config，不依赖此前的评估脚本、attention 脚本或旧实验配置。
 
+### 准备 NTv3 预训练基模
+
+ORION 发布的 checkpoint 是 LoRA/DoRA 增量权重和分类头权重，不包含完整 NTv3 650M backbone。因此运行端必须提前准备 NTv3 650M 预训练基模，并让 `resolved_config.json` 中的 `model.name` 指向该目录。
+
+先确认基模目录存在：
+
+```bash
+BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+ls "$BASE_MODEL"
+```
+
+目录中应包含 HuggingFace 模型所需文件，例如 `config.json`、tokenizer 文件、custom modeling Python 文件，以及权重文件。
+
+公开发布的 `resolved_config.json` 使用占位路径：
+
+```json
+"name": "/path/to/NTv3_650M_pre"
+```
+
+本地运行时建议生成 `resolved_config.local.json`，不要直接改发布版 config：
+
+```bash
+MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+
+for cfg in "$MODEL_ROOT"/*/resolved_config.json; do
+  local_cfg="${cfg%.json}.local.json"
+  python - "$cfg" "$local_cfg" "$BASE_MODEL" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+src, dst, base_model = map(Path, sys.argv[1:])
+obj = json.loads(src.read_text())
+obj["model"]["name"] = str(base_model)
+obj["model"]["local_files_only"] = True
+dst.write_text(json.dumps(obj, indent=2) + "\n")
+print(dst)
+PY
+done
+```
+
+之后 `configs/checkpoints.local.json` 中的 `config` 字段应指向 `resolved_config.local.json`。
+
 推荐准备一个 checkpoint registry，例如复制并修改：
 
 ```bash
@@ -55,7 +99,7 @@ cp configs/checkpoints.example.json configs/checkpoints.local.json
       "description": "Default high-confidence K562 checkpoint",
       "model_backend": "orion",
       "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json",
+      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.local.json",
       "threshold": 0.463
     }
   }
@@ -66,7 +110,7 @@ cp configs/checkpoints.example.json configs/checkpoints.local.json
 
 - `default_checkpoint`：未指定 `--checkpoint-label` 时使用的模型标签。
 - `checkpoint`：模型权重文件，支持原训练输出的 `.pt`。
-- `config`：与该 checkpoint 对应的 `resolved_config.json` 或 YAML。
+- `config`：与该 checkpoint 对应的本地运行 config。推荐指向 `resolved_config.local.json`，其中 `model.name` 已替换为本机 NTv3 650M 基模路径。
 - `threshold`：分类任务的推荐校准阈值，只作为记录；默认 peak calling 不直接使用它。
 - `model_backend`：目前支持 `orion`。
 

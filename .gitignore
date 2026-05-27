@@ -14,8 +14,9 @@ outputs/
 released_models/
 models/
 orion_checkpoint/
-docs/
 configs/checkpoints.local.json
+docs/NAME_OPTIONS.md
+docs/MODEL_PUBLISHING_CN.md
 checksums.sha256
 *.fai
 *.pt
