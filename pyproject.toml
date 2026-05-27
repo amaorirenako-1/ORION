@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "iz-origin-scanner"
+name = "orion-iz"
 version = "0.1.0"
-description = "Independent whole-genome initiation-zone probability scanner and peak caller."
+description = "ORION: an independent whole-genome initiation-zone scoring and peak-calling tool."
 readme = "README_EN.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "IZ Origin Scanner contributors" }
+  { name = "ORION contributors" }
 ]
 dependencies = [
   "numpy>=1.26",
@@ -30,8 +30,7 @@ dependencies = [
 peakcalling = ["MACS3>=3.0"]
 
 [project.scripts]
-izscan = "izscan.cli:main"
+orion = "orion.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

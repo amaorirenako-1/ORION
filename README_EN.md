@@ -1,14 +1,14 @@
-# IZ Origin Scanner
+# ORION
 
-`IZ Origin Scanner` is an independent command-line tool for whole-genome initiation-zone (IZ) scoring. It scans a reference FASTA with fixed genomic windows, writes per-window model scores and a bedGraph score track, and can call high-confidence candidate IZ peaks from any bedGraph track.
+`ORION` (Origin Recognition and Initiation-zone Omics Network) is an independent command-line tool for whole-genome initiation-zone (IZ) scoring. It scans a reference FASTA with fixed genomic windows, writes per-window model scores and a bedGraph score track, and can call high-confidence candidate IZ peaks from any bedGraph track.
 
-This project does not depend on earlier evaluation scripts or experiment configs. A minimal inference runtime is vendored in this package. A released model only needs its checkpoint and matching `resolved_config.json`.
+This project does not depend on earlier evaluation scripts or experiment configs. A minimal inference runtime is vendored in this package. A released model must include both its checkpoint and matching `resolved_config.json`, otherwise the backbone, LoRA, pooling, and head settings cannot be reconstructed reliably.
 
 ## Features
 
-- `izscan predict`: score sliding windows from a genome FASTA.
-- `izscan call-peaks`: call candidate IZ peaks from a bedGraph score track; this step is independent of the model.
-- `izscan run`: run prediction and peak calling in one command.
+- `orion predict`: score sliding windows from a genome FASTA.
+- `orion call-peaks`: call candidate IZ peaks from a bedGraph score track; this step is independent of the model.
+- `orion run`: run prediction and peak calling in one command.
 - Default window size: `30000 bp`.
 - Default score: `prob`.
 - Default checkpoint label: `gc100_best`, with support for alternative labels or direct checkpoint/config paths.
@@ -20,9 +20,9 @@ This project does not depend on earlier evaluation scripts or experiment configs
 Recommended fresh server environment:
 
 ```bash
-conda create -n izscan python=3.11 -y
-conda activate izscan
-cd /path/to/iz_origin_scanner
+conda create -n orion python=3.11 -y
+conda activate orion
+cd /path/to/orion
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -36,6 +36,8 @@ pip install "MACS3>=3.0"
 The default `requirements.txt` pins `transformers<4.52` to reduce the risk of torch/transformers flex-attention API mismatches. If your NTv3 runtime has a separately validated version set, test and replace those pins in a clean environment.
 
 ## Model Registry
+
+If you are using the four final selected checkpoints, first follow [docs/CHECKPOINT_IMPORT_EN.md](docs/CHECKPOINT_IMPORT_EN.md) to import the checkpoint weights and matching `resolved_config.json` files into an independent model directory. This import process copies only released model artifacts and does not depend on earlier evaluation scripts, attention scripts, or old experiment configs.
 
 Copy and edit the example registry:
 
@@ -51,9 +53,9 @@ Example:
   "checkpoints": {
     "gc100_best": {
       "description": "Default high-confidence K562 checkpoint",
-      "model_backend": "iz_p0",
-      "checkpoint": "/data01/share/models/iz/gc100_best/best.pt",
-      "config": "/data01/share/models/iz/gc100_best/resolved_config.json",
+      "model_backend": "orion",
+      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt",
+      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json",
       "threshold": 0.463
     }
   }
@@ -66,18 +68,18 @@ Fields:
 - `checkpoint`: model weights file.
 - `config`: matching `resolved_config.json` or YAML.
 - `threshold`: recorded calibrated classification threshold; peak calling does not use it by default.
-- `model_backend`: currently `iz_p0`.
+- `model_backend`: currently `orion`.
 
 ## Genome Scoring
 
 K562/hg19 example:
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \
@@ -88,7 +90,7 @@ izscan predict \
 Scan selected chromosomes:
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --sequence-names chr1,chr2,chr3 \
@@ -98,7 +100,7 @@ izscan predict \
 Scan selected regions:
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --regions chr1:0-10000000,chr2:5000000-12000000 \
@@ -108,10 +110,10 @@ izscan predict \
 Use a checkpoint directly:
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
-  --checkpoint /data01/share/models/iz/gc100_best/best.pt \
-  --model-config /data01/share/models/iz/gc100_best/resolved_config.json \
+  --checkpoint /data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt \
+  --model-config /data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json \
   --output-dir output/direct_model
 ```
 
@@ -158,9 +160,9 @@ For `--output-prefix k562_gc100_best`:
 Run peak calling from any bedGraph:
 
 ```bash
-izscan call-peaks \
-  --score-track /data01/share/cxsy1/izscan/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best/peaks \
+orion call-peaks \
+  --score-track /data01/share/cxsy1/orion/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best/peaks \
   --output-prefix k562_gc100_best \
   --method scipy \
   --peak-min-score 0.70 \
@@ -174,11 +176,11 @@ izscan call-peaks \
 Run scoring and peak calling together:
 
 ```bash
-izscan run \
+orion run \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best_run \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best_run \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \

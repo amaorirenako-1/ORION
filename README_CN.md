@@ -1,14 +1,14 @@
-# IZ Origin Scanner
+# ORION
 
-`IZ Origin Scanner` 是一个独立的全基因组 initiation zone (IZ) 扫描工具。它把训练好的 IZ 模型封装为命令行程序，支持在任意参考基因组 FASTA 上按固定窗口运行，输出每个窗口的模型分数和 bedGraph 轨道，并可进一步从分数轨道中调用高置信 IZ peak。
+`ORION`（Origin Recognition and Initiation-zone Omics Network）是一个独立的全基因组 initiation zone (IZ) 扫描工具。它把训练好的 IZ 模型封装为命令行程序，支持在任意参考基因组 FASTA 上按固定窗口运行，输出每个窗口的模型分数和 bedGraph 轨道，并可进一步从分数轨道中调用高置信 IZ peak。
 
-本项目不依赖先前的评估脚本或实验 config。推理所需的最小模型 runtime 已经 vendored 到本包中；发布模型时只需要提供 checkpoint 和该 checkpoint 对应的 `resolved_config.json`。
+本项目不依赖先前的评估脚本或实验 config。推理所需的最小模型 runtime 已经 vendored 到本包中；发布模型时必须同时提供 checkpoint 和该 checkpoint 对应的 `resolved_config.json`，否则无法可靠恢复 backbone、LoRA、pooling 和 head 设置。
 
 ## 主要功能
 
-- `izscan predict`：在 FASTA 上按滑动窗口预测 IZ 概率。
-- `izscan call-peaks`：从任意 bedGraph 分数轨道调用候选 IZ peak；这一步与模型解耦。
-- `izscan run`：先预测，再对预测得到的 bedGraph 进行 peak calling。
+- `orion predict`：在 FASTA 上按滑动窗口预测 IZ 概率。
+- `orion call-peaks`：从任意 bedGraph 分数轨道调用候选 IZ peak；这一步与模型解耦。
+- `orion run`：先预测，再对预测得到的 bedGraph 进行 peak calling。
 - 默认窗口大小为 `30000 bp`。
 - 默认输出分数为 `prob`。
 - 默认 checkpoint label 为 `gc100_best`，也支持 registry 中的其他 checkpoint 或直接指定 checkpoint/config。
@@ -20,9 +20,9 @@
 建议在服务器新建环境测试：
 
 ```bash
-conda create -n izscan python=3.11 -y
-conda activate izscan
-cd /path/to/iz_origin_scanner
+conda create -n orion python=3.11 -y
+conda activate orion
+cd /path/to/orion
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -36,6 +36,8 @@ pip install "MACS3>=3.0"
 注意：`requirements.txt` 将 `transformers` 限制在 `<4.52`，这是为了降低 `torch` 与新版 `transformers` 中 flex attention API 不匹配的风险。如果你的 NTv3 环境已经验证过另一组版本，可以在独立环境中按该版本替换。
 
 ## 模型文件准备
+
+如果你要使用我们最终选定的四个 checkpoint，请先按照 [docs/CHECKPOINT_IMPORT_CN.md](docs/CHECKPOINT_IMPORT_CN.md) 把 checkpoint 和对应的 `resolved_config.json` 导入到独立模型目录中。该流程只复制模型权重和 resolved config，不依赖此前的评估脚本、attention 脚本或旧实验配置。
 
 推荐准备一个 checkpoint registry，例如复制并修改：
 
@@ -51,9 +53,9 @@ cp configs/checkpoints.example.json configs/checkpoints.local.json
   "checkpoints": {
     "gc100_best": {
       "description": "Default high-confidence K562 checkpoint",
-      "model_backend": "iz_p0",
-      "checkpoint": "/data01/share/models/iz/gc100_best/best.pt",
-      "config": "/data01/share/models/iz/gc100_best/resolved_config.json",
+      "model_backend": "orion",
+      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt",
+      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json",
       "threshold": 0.463
     }
   }
@@ -66,18 +68,18 @@ cp configs/checkpoints.example.json configs/checkpoints.local.json
 - `checkpoint`：模型权重文件，支持原训练输出的 `.pt`。
 - `config`：与该 checkpoint 对应的 `resolved_config.json` 或 YAML。
 - `threshold`：分类任务的推荐校准阈值，只作为记录；默认 peak calling 不直接使用它。
-- `model_backend`：目前支持 `iz_p0`。
+- `model_backend`：目前支持 `orion`。
 
 ## 全基因组扫描
 
 K562/hg19 示例：
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \
@@ -88,7 +90,7 @@ izscan predict \
 只扫描部分染色体：
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --sequence-names chr1,chr2,chr3 \
@@ -98,7 +100,7 @@ izscan predict \
 只扫描指定区间：
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --regions chr1:0-10000000,chr2:5000000-12000000 \
@@ -108,10 +110,10 @@ izscan predict \
 也可以直接指定模型，不使用 registry：
 
 ```bash
-izscan predict \
+orion predict \
   --fasta /home/cxsy1/reference/hg19.fa \
-  --checkpoint /data01/share/models/iz/gc100_best/best.pt \
-  --model-config /data01/share/models/iz/gc100_best/resolved_config.json \
+  --checkpoint /data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt \
+  --model-config /data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json \
   --output-dir output/direct_model
 ```
 
@@ -166,9 +168,9 @@ izscan predict \
 `call-peaks` 可以独立使用，只需要输入 bedGraph：
 
 ```bash
-izscan call-peaks \
-  --score-track /data01/share/cxsy1/izscan/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best/peaks \
+orion call-peaks \
+  --score-track /data01/share/cxsy1/orion/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best/peaks \
   --output-prefix k562_gc100_best \
   --method scipy \
   --peak-min-score 0.70 \
@@ -182,11 +184,11 @@ izscan call-peaks \
 也可以将预测和 peak calling 串联：
 
 ```bash
-izscan run \
+orion run \
   --fasta /home/cxsy1/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/izscan/k562_hg19_gc100_best_run \
+  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best_run \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \
@@ -228,8 +230,8 @@ izscan run \
 
 1. 先用 `--sequence-names chr22` 或一个小区间验证环境、模型路径和输出格式。
 2. 确认 `window_predictions.tsv` 中 `prob` 分布合理。
-3. 对 K562/hg19 全基因组运行 `izscan predict`。
-4. 用默认严格参数运行 `izscan call-peaks`，得到高置信候选 IZ。
+3. 对 K562/hg19 全基因组运行 `orion predict`。
+4. 用默认严格参数运行 `orion call-peaks`，得到高置信候选 IZ。
 5. 若候选过少，再逐步降低 `--peak-min-score`，例如 `0.65`、`0.60`，并在结果中标注阈值。
 
 ## 常见问题

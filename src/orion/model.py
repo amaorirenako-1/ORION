@@ -24,7 +24,7 @@ def _update_dataclass_tolerant(obj: Any, values: dict[str, Any], section: str) -
 
 
 def load_pipeline_config(path: str | Path):
-    from izscan_runtime.config import PipelineConfig
+    from orion_runtime.config import PipelineConfig
 
     raw = load_json_or_yaml(path)
     config = PipelineConfig()
@@ -63,8 +63,8 @@ def _strip_module_prefix(state: dict[str, torch.Tensor]) -> dict[str, torch.Tens
     return {key.removeprefix("module."): value for key, value in state.items()}
 
 
-class IZP0Predictor:
-    """Prediction wrapper for the vendored IZ P0 model runtime."""
+class OrionPredictor:
+    """Prediction wrapper for the vendored ORION inference runtime."""
 
     def __init__(
         self,
@@ -73,8 +73,8 @@ class IZP0Predictor:
         device: str = "cuda",
         torch_dtype: str | None = None,
     ):
-        from izscan_runtime.model import IZModel
-        from izscan_runtime.utils import resolve_device
+        from orion_runtime.model import IZModel
+        from orion_runtime.utils import resolve_device
 
         self.config = load_pipeline_config(config_path)
         configure_model_cache(getattr(self.config.experiment, "cache_dir", None))
@@ -125,6 +125,6 @@ def load_predictor(
     torch_dtype: str | None,
 ):
     backend = model_backend.lower()
-    if backend != "iz_p0":
+    if backend != "orion":
         raise ValueError(f"Unsupported model backend: {model_backend}")
-    return IZP0Predictor(checkpoint_path, config_path, device=device, torch_dtype=torch_dtype)
+    return OrionPredictor(checkpoint_path, config_path, device=device, torch_dtype=torch_dtype)
