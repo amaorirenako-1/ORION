@@ -1,0 +1,34 @@
+{
+  "default_checkpoint": "gc100_best",
+  "checkpoints": {
+    "gc100_best": {
+      "description": "Default high-confidence K562 checkpoint. Replace paths with released files on your server.",
+      "model_backend": "iz_p0",
+      "checkpoint": "/path/to/released_models/gc100_best/best.pt",
+      "config": "/path/to/released_models/gc100_best/resolved_config.json",
+      "threshold": 0.463
+    },
+    "gc100_2800": {
+      "description": "Alternative GC-matched checkpoint.",
+      "model_backend": "iz_p0",
+      "checkpoint": "/path/to/released_models/gc100_2800/step_2800.pt",
+      "config": "/path/to/released_models/gc100_2800/resolved_config.json",
+      "threshold": 0.463
+    },
+    "random100_3200": {
+      "description": "Alternative random-negative checkpoint.",
+      "model_backend": "iz_p0",
+      "checkpoint": "/path/to/released_models/random100_3200/step_3200.pt",
+      "config": "/path/to/released_models/random100_3200/resolved_config.json",
+      "threshold": 0.463
+    },
+    "random_psm_2200": {
+      "description": "Alternative random/PSM mixed-negative checkpoint.",
+      "model_backend": "iz_p0",
+      "checkpoint": "/path/to/released_models/random_psm_2200/step_2200.pt",
+      "config": "/path/to/released_models/random_psm_2200/resolved_config.json",
+      "threshold": 0.463
+    }
+  }
+}
+
