@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iz-origin-scanner"
+version = "0.1.0"
+description = "Independent whole-genome initiation-zone probability scanner and peak caller."
+readme = "README_EN.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "IZ Origin Scanner contributors" }
+]
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "pyfaidx>=0.8",
+  "PyYAML>=6.0",
+  "tqdm>=4.66",
+  "scipy>=1.11",
+  "torch>=2.4,<2.7",
+  "transformers>=4.44,<4.52",
+  "peft>=0.11,<0.17",
+  "accelerate>=0.30",
+  "safetensors>=0.4"
+]
+
+[project.optional-dependencies]
+peakcalling = ["MACS3>=3.0"]
+
+[project.scripts]
+izscan = "izscan.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
