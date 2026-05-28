@@ -265,14 +265,50 @@ def write_peaks(peaks: list[Peak], out_dir: Path, prefix: str) -> dict[str, str]
     return {"peaks_bed": str(bed_path), "peaks_summary": str(summary_path)}
 
 
-def run_macs3(args: Any) -> dict[str, Any]:
+def _append_macs3_common_options(command: list[str], args: Any) -> None:
+    if getattr(args, "macs3_no_trackline", False):
+        command.append("--no-trackline")
+    if getattr(args, "macs3_verbose", None) is not None:
+        command.extend(["--verbose", str(args.macs3_verbose)])
+
+
+def _write_macs3_gap_filled_bedgraph(args: Any, out_dir: Path) -> Path:
+    fill_score = getattr(args, "macs3_fill_gaps_score", None)
+    if fill_score is None:
+        return Path(args.score_track)
+    grouped = read_bedgraph(args.score_track)
+    output_path = out_dir / f"{args.output_prefix}.macs3_input.gap_filled.bedGraph"
+    with open_text(output_path, "wt") as handle:
+        for chrom in sorted(grouped):
+            previous_end: int | None = None
+            for item in grouped[chrom]:
+                start = item.start
+                end = item.end
+                if previous_end is not None:
+                    if start > previous_end:
+                        handle.write(f"{chrom}\t{previous_end}\t{start}\t{float(fill_score):.8g}\n")
+                    elif start < previous_end:
+                        start = previous_end
+                if end <= start:
+                    continue
+                handle.write(f"{chrom}\t{start}\t{end}\t{item.score:.8g}\n")
+                previous_end = end
+    return output_path
+
+
+def run_macs3_bdgpeakcall(args: Any) -> dict[str, Any]:
     out_dir = ensure_dir(args.output_dir)
-    output_path = out_dir / f"{args.output_prefix}.macs3_bdgpeakcall.bed"
+    macs3_input = _write_macs3_gap_filled_bedgraph(args, out_dir)
+    output_path = out_dir / (
+        f"{args.output_prefix}.macs3_cutoff_analysis.tsv"
+        if args.macs3_cutoff_analysis
+        else f"{args.output_prefix}.macs3_bdgpeakcall.bed"
+    )
     command = [
         "macs3",
         "bdgpeakcall",
         "-i",
-        str(args.score_track),
+        str(macs3_input),
         "-o",
         str(output_path),
         "-c",
@@ -282,12 +318,74 @@ def run_macs3(args: Any) -> dict[str, Any]:
         "-g",
         str(args.peak_max_gap),
     ]
+    if args.macs3_cutoff_analysis:
+        command.append("--cutoff-analysis")
+        if args.macs3_cutoff_analysis_steps is not None:
+            command.extend(["--cutoff-analysis-steps", str(args.macs3_cutoff_analysis_steps)])
+    _append_macs3_common_options(command, args)
     subprocess.run(command, check=True)
     summary = {
         "method": "macs3",
+        "macs3_subcommand": "bdgpeakcall",
         "score_track": str(args.score_track),
+        "macs3_input": str(macs3_input),
+        "macs3_fill_gaps_score": getattr(args, "macs3_fill_gaps_score", None),
+        "peak_min_score": args.peak_min_score,
+        "peak_min_width": args.peak_min_width,
+        "peak_max_gap": args.peak_max_gap,
+        "macs3_cutoff_analysis": args.macs3_cutoff_analysis,
         "command": command,
-        "outputs": {"macs3_peaks": str(output_path)},
+        "outputs": {
+            "macs3_cutoff_analysis" if args.macs3_cutoff_analysis else "macs3_peaks": str(output_path)
+        },
+    }
+    summary_path = out_dir / f"{args.output_prefix}.peak_calling_summary.json"
+    summary["outputs"]["peak_calling_summary"] = str(summary_path)
+    write_json(summary_path, summary)
+    return summary
+
+
+def run_macs3_bdgbroadcall(args: Any) -> dict[str, Any]:
+    if args.macs3_cutoff_analysis:
+        raise ValueError("--macs3-cutoff-analysis is only supported for --method macs3 / bdgpeakcall.")
+    if args.macs3_broad_link_score > args.peak_min_score:
+        raise ValueError("--macs3-broad-link-score should be <= --peak-min-score.")
+    out_dir = ensure_dir(args.output_dir)
+    macs3_input = _write_macs3_gap_filled_bedgraph(args, out_dir)
+    output_path = out_dir / f"{args.output_prefix}.macs3_bdgbroadcall.gappedPeak"
+    command = [
+        "macs3",
+        "bdgbroadcall",
+        "-i",
+        str(macs3_input),
+        "-o",
+        str(output_path),
+        "-c",
+        str(args.peak_min_score),
+        "-C",
+        str(args.macs3_broad_link_score),
+        "-l",
+        str(args.peak_min_width),
+        "-g",
+        str(args.peak_max_gap),
+        "-G",
+        str(args.macs3_broad_max_gap),
+    ]
+    _append_macs3_common_options(command, args)
+    subprocess.run(command, check=True)
+    summary = {
+        "method": "macs3-broad",
+        "macs3_subcommand": "bdgbroadcall",
+        "score_track": str(args.score_track),
+        "macs3_input": str(macs3_input),
+        "macs3_fill_gaps_score": getattr(args, "macs3_fill_gaps_score", None),
+        "peak_min_score": args.peak_min_score,
+        "macs3_broad_link_score": args.macs3_broad_link_score,
+        "peak_min_width": args.peak_min_width,
+        "peak_max_gap": args.peak_max_gap,
+        "macs3_broad_max_gap": args.macs3_broad_max_gap,
+        "command": command,
+        "outputs": {"macs3_broad_peaks": str(output_path)},
     }
     summary_path = out_dir / f"{args.output_prefix}.peak_calling_summary.json"
     summary["outputs"]["peak_calling_summary"] = str(summary_path)
@@ -297,7 +395,9 @@ def run_macs3(args: Any) -> dict[str, Any]:
 
 def call_peaks(args: Any) -> dict[str, Any]:
     if args.method == "macs3":
-        return run_macs3(args)
+        return run_macs3_bdgpeakcall(args)
+    if args.method == "macs3-broad":
+        return run_macs3_bdgbroadcall(args)
     out_dir = ensure_dir(args.output_dir)
     grouped = read_bedgraph(args.score_track)
     if args.method == "scipy":

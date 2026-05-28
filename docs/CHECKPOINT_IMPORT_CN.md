@@ -309,6 +309,22 @@ orion call-peaks \
   --smooth-bins 5
 ```
 
+如果希望输出更偏 broad region 的 IZ 候选区间，可以使用 `--method threshold`，或使用可选的 MACS3 broad caller：
+
+```bash
+orion call-peaks \
+  --score-track output/smoke_gc100_best/smoke_gc100_best.prob.bedGraph \
+  --output-dir output/smoke_gc100_best/peaks_broad \
+  --output-prefix smoke_gc100_best \
+  --method macs3-broad \
+  --peak-min-score 0.70 \
+  --macs3-broad-link-score 0.50 \
+  --peak-min-width 30000 \
+  --peak-max-gap 30000 \
+  --macs3-broad-max-gap 90000 \
+  --macs3-fill-gaps-score 0
+```
+
 ## 12. K562/hg19 全基因组运行
 
 确认 smoke test 正常后，再运行全基因组：
@@ -344,8 +360,8 @@ orion run \
 
 ```bash
 cd /path/to/model_release_parent
-tar -czf orion_models_v1.0.0.tar.gz orion_checkpoint
-sha256sum orion_models_v1.0.0.tar.gz
+tar -czf orion_models_v0.1.0.tar.gz orion_checkpoint
+sha256sum orion_models_v0.1.0.tar.gz
 ```
 
 Release notes 中记录：

@@ -27,7 +27,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-如果需要使用 MACS3 的 `bdgpeakcall`：
+如果需要使用 MACS3 peak calling：
 
 ```bash
 pip install "MACS3>=3.0"
@@ -243,17 +243,42 @@ orion run \
 
 默认 peak calling 比分类校准阈值更严格：默认 `--peak-min-score 0.70`，并且 `scipy` 方法还要求 `--peak-prominence 0.05`。这样输出的是高置信 IZ 候选区域，而不是所有可能为阳性的窗口。若后续目标是提高召回率，可以降低 `--peak-min-score`，但需要在结果注释中说明。
 
+如果希望输出更偏 broad region 的 IZ 候选区间，可以使用内置 `threshold` 方法，或使用可选的 MACS3 broad caller：
+
+```bash
+orion call-peaks \
+  --score-track /path/to/orion_runs/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best/peaks_broad \
+  --output-prefix k562_gc100_best \
+  --method macs3-broad \
+  --peak-min-score 0.70 \
+  --macs3-broad-link-score 0.50 \
+  --peak-min-width 30000 \
+  --peak-max-gap 30000 \
+  --macs3-broad-max-gap 90000 \
+  --macs3-fill-gaps-score 0
+```
+
+`macs3` 对应 `macs3 bdgpeakcall`，是单 cutoff 的 peak caller；`macs3-broad` 对应 `macs3 bdgbroadcall`，会用较弱阈值把相邻强信号区域连接成 broad region。对于 IZ 分析，broad candidate region 通常比 narrow summit 更容易解释，因为 ORION 当前是在 30 kb window 上打分，而不是检测碱基级的点状结合事件。MACS3 的 bedGraph caller 更适合连续 track；如果 ORION bedGraph 因为跳过含 N 的窗口而存在 gap，可以用 `--macs3-fill-gaps-score 0` 生成临时 gap-filled MACS3 输入。
+
 ## `call-peaks` 参数说明
 
 - `--score-track`：输入 bedGraph，4 列：`chrom start end score`。
 - `--output-dir`：输出目录。
-- `--method`：`scipy`、`threshold` 或 `macs3`。
+- `--method`：`scipy`、`threshold`、`macs3` 或 `macs3-broad`。
 - `--peak-min-score`：候选 peak 的最低分数，默认 `0.70`。
 - `--peak-prominence`：`scipy` 方法使用的峰突出度，默认 `0.05`。
 - `--peak-min-distance`：`scipy` 方法中 summit 的最小间距，默认 `30000 bp`。
 - `--peak-min-width`：最小 peak 宽度，默认 `5000 bp`。
 - `--peak-max-gap`：合并或延伸 peak 时允许跨越的最大 gap，默认 `30000 bp`。
 - `--smooth-bins`：peak calling 前对分数做 rolling mean 的 bin 数，默认 `5`。
+- `--macs3-broad-link-score`：`macs3-broad` / `bdgbroadcall` 使用的弱连接阈值，默认 `0.50`。
+- `--macs3-broad-max-gap`：`macs3-broad` / `bdgbroadcall` 的二级 broad region 最大 gap，默认 `90000 bp`。
+- `--macs3-no-trackline`：传递 `--no-trackline` 给 MACS3。
+- `--macs3-verbose`：MACS3 verbose level。
+- `--macs3-fill-gaps-score`：生成临时 MACS3 输入 bedGraph，用指定分数填补相邻 bins 之间的 gap，通常设为 `0`。
+- `--macs3-cutoff-analysis`：运行 MACS3 `bdgpeakcall` cutoff analysis，而不是输出 peak；只支持 `--method macs3`。
+- `--macs3-cutoff-analysis-steps`：MACS3 cutoff analysis 的扫描步数。
 - `--output-prefix`：输出文件前缀。
 
 ## `call-peaks` 输出说明
@@ -269,6 +294,7 @@ orion run \
 - `k562_gc100_best.peak_calling_summary.json`
   - peak calling 参数、输入轨道、peak 数量和输出路径。
 - 如果 `--method macs3`，会调用外部 `macs3 bdgpeakcall`，输出 `*.macs3_bdgpeakcall.bed`。
+- 如果 `--method macs3-broad`，会调用外部 `macs3 bdgbroadcall`，输出 `*.macs3_bdgbroadcall.gappedPeak`。
 
 ## 推荐运行策略
 

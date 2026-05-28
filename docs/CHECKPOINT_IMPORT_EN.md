@@ -182,6 +182,22 @@ orion call-peaks \
   --peak-prominence 0.05
 ```
 
+For broader IZ regions, use either `--method threshold` or the optional MACS3 broad caller:
+
+```bash
+orion call-peaks \
+  --score-track output/smoke_gc100_best/smoke_gc100_best.prob.bedGraph \
+  --output-dir output/smoke_gc100_best/peaks_broad \
+  --output-prefix smoke_gc100_best \
+  --method macs3-broad \
+  --peak-min-score 0.70 \
+  --macs3-broad-link-score 0.50 \
+  --peak-min-width 30000 \
+  --peak-max-gap 30000 \
+  --macs3-broad-max-gap 90000 \
+  --macs3-fill-gaps-score 0
+```
+
 ## Release Packaging
 
 Publish code and models separately:
@@ -193,8 +209,8 @@ Create a model package:
 
 ```bash
 cd /path/to/model_release_parent
-tar -czf orion_models_v1.0.0.tar.gz orion_checkpoint
-sha256sum orion_models_v1.0.0.tar.gz
+tar -czf orion_models_v0.1.0.tar.gz orion_checkpoint
+sha256sum orion_models_v0.1.0.tar.gz
 ```
 
 Release notes should record the tool tag, model package checksum, checkpoint labels, recommended default checkpoint `gc100_best`, window size `30000 bp`, default score `prob`, and strict peak score cutoff `0.70`.

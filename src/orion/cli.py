@@ -46,10 +46,13 @@ def add_predict_args(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(include_terminal_window=True)
 
 
-def add_peak_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--score-track", required=True, help="Input bedGraph with chrom/start/end/score.")
-    parser.add_argument("--output-dir", required=True, help="Output directory.")
-    parser.add_argument("--method", choices=["scipy", "threshold", "macs3"], default="scipy", help="Peak caller.")
+def add_peak_algorithm_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--method",
+        choices=["scipy", "threshold", "macs3", "macs3-broad"],
+        default="scipy",
+        help="Peak caller. macs3 uses bdgpeakcall; macs3-broad uses bdgbroadcall.",
+    )
     parser.add_argument(
         "--peak-min-score",
         type=float,
@@ -71,6 +74,43 @@ def add_peak_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--peak-min-width", type=int, default=5000, help="Minimum peak width in bp. Default: 5000.")
     parser.add_argument("--peak-max-gap", type=int, default=30000, help="Merge/extend across gaps up to bp.")
     parser.add_argument("--smooth-bins", type=int, default=5, help="Rolling mean bins before peak calling.")
+    parser.add_argument(
+        "--macs3-broad-link-score",
+        type=float,
+        default=0.50,
+        help="Weak-link cutoff for macs3-broad / bdgbroadcall. Default: 0.50.",
+    )
+    parser.add_argument(
+        "--macs3-broad-max-gap",
+        type=int,
+        default=90000,
+        help="Level-2 weak-region max gap for macs3-broad / bdgbroadcall. Default: 90000 bp.",
+    )
+    parser.add_argument("--macs3-no-trackline", action="store_true", help="Pass --no-trackline to MACS3.")
+    parser.add_argument("--macs3-verbose", type=int, default=None, help="MACS3 verbose level.")
+    parser.add_argument(
+        "--macs3-fill-gaps-score",
+        type=float,
+        default=None,
+        help="If set, write a temporary MACS3 input bedGraph with inter-bin gaps filled by this score, usually 0.",
+    )
+    parser.add_argument(
+        "--macs3-cutoff-analysis",
+        action="store_true",
+        help="Run MACS3 bdgpeakcall cutoff analysis instead of writing peaks. Only valid with --method macs3.",
+    )
+    parser.add_argument(
+        "--macs3-cutoff-analysis-steps",
+        type=int,
+        default=None,
+        help="Number of MACS3 cutoff-analysis steps for --method macs3.",
+    )
+
+
+def add_peak_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--score-track", required=True, help="Input bedGraph with chrom/start/end/score.")
+    parser.add_argument("--output-dir", required=True, help="Output directory.")
+    add_peak_algorithm_args(parser)
     parser.add_argument("--output-prefix", default="orion", help="Output file prefix.")
 
 
@@ -92,13 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Run prediction and then peak calling.")
     add_predict_args(run_parser)
-    run_parser.add_argument("--method", choices=["scipy", "threshold", "macs3"], default="scipy", help="Peak caller.")
-    run_parser.add_argument("--peak-min-score", type=float, default=0.70, help="Strict peak score cutoff.")
-    run_parser.add_argument("--peak-prominence", type=float, default=0.05, help="Minimum local prominence.")
-    run_parser.add_argument("--peak-min-distance", type=int, default=30000, help="Minimum summit distance in bp.")
-    run_parser.add_argument("--peak-min-width", type=int, default=5000, help="Minimum peak width in bp.")
-    run_parser.add_argument("--peak-max-gap", type=int, default=30000, help="Merge/extend across gaps up to bp.")
-    run_parser.add_argument("--smooth-bins", type=int, default=5, help="Rolling mean bins before peak calling.")
+    add_peak_algorithm_args(run_parser)
     return parser
 
 

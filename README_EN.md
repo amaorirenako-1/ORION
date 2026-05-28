@@ -27,7 +27,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Optional MACS3 support:
+Optional MACS3 peak-calling support:
 
 ```bash
 pip install "MACS3>=3.0"
@@ -235,17 +235,42 @@ orion run \
 
 The default peak-calling parameters are intentionally stricter than a calibrated classifier threshold: `--peak-min-score 0.70` plus local prominence filtering for the `scipy` method. This aims to produce high-confidence candidate IZ regions rather than every likely positive window.
 
+For broader IZ-style regions, use either the built-in `threshold` method or the optional MACS3 broad caller:
+
+```bash
+orion call-peaks \
+  --score-track /path/to/orion_runs/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best/peaks_broad \
+  --output-prefix k562_gc100_best \
+  --method macs3-broad \
+  --peak-min-score 0.70 \
+  --macs3-broad-link-score 0.50 \
+  --peak-min-width 30000 \
+  --peak-max-gap 30000 \
+  --macs3-broad-max-gap 90000 \
+  --macs3-fill-gaps-score 0
+```
+
+`macs3` uses `macs3 bdgpeakcall`, which is a single-cutoff peak caller. `macs3-broad` uses `macs3 bdgbroadcall`, which links strong regions through weaker nearby signal. For IZ analysis, broad candidate regions are often easier to interpret than narrow summit-like peaks, because ORION scores 30 kb windows rather than base-pair-resolution binding events. MACS3 bedGraph callers expect continuous tracks; if the ORION bedGraph has gaps from skipped windows, use `--macs3-fill-gaps-score 0` to create a temporary gap-filled MACS3 input.
+
 ## `call-peaks` Arguments
 
 - `--score-track`: input bedGraph with `chrom start end score`.
 - `--output-dir`: output directory.
-- `--method`: `scipy`, `threshold`, or `macs3`.
+- `--method`: `scipy`, `threshold`, `macs3`, or `macs3-broad`.
 - `--peak-min-score`: minimum score for candidate peaks. Default: `0.70`.
 - `--peak-prominence`: local prominence for `scipy`. Default: `0.05`.
 - `--peak-min-distance`: minimum summit distance for `scipy`. Default: `30000 bp`.
 - `--peak-min-width`: minimum peak width. Default: `5000 bp`.
 - `--peak-max-gap`: maximum gap used for peak extension/merging. Default: `30000 bp`.
 - `--smooth-bins`: rolling-mean bins before peak calling. Default: `5`.
+- `--macs3-broad-link-score`: weak-link cutoff for `macs3-broad` / `bdgbroadcall`. Default: `0.50`.
+- `--macs3-broad-max-gap`: level-2 weak-region max gap for `macs3-broad` / `bdgbroadcall`. Default: `90000 bp`.
+- `--macs3-no-trackline`: pass `--no-trackline` to MACS3.
+- `--macs3-verbose`: MACS3 verbose level.
+- `--macs3-fill-gaps-score`: write a temporary MACS3 input bedGraph with gaps between adjacent bins filled by this score, usually `0`.
+- `--macs3-cutoff-analysis`: run MACS3 `bdgpeakcall` cutoff analysis instead of writing peaks. Only valid with `--method macs3`.
+- `--macs3-cutoff-analysis-steps`: number of MACS3 cutoff-analysis steps.
 - `--output-prefix`: output file prefix.
 
 ## `call-peaks` Outputs
@@ -259,6 +284,7 @@ The default peak-calling parameters are intentionally stricter than a calibrated
 - `*.peak_calling_summary.json`
   - Input, parameters, peak count, and output paths.
 - With `--method macs3`, the tool calls external `macs3 bdgpeakcall` and writes `*.macs3_bdgpeakcall.bed`.
+- With `--method macs3-broad`, the tool calls external `macs3 bdgbroadcall` and writes `*.macs3_bdgbroadcall.gappedPeak`.
 
 ## Recommended Workflow
 
