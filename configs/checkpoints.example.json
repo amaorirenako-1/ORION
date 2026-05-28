@@ -20,14 +20,14 @@
       "model_backend": "orion",
       "checkpoint": "/path/to/orion_checkpoint/random100_3200/checkpoint.pt",
       "config": "/path/to/orion_checkpoint/random100_3200/resolved_config.local.json",
-      "threshold": 0.463
+      "threshold": 0.375
     },
     "random_psm_2200": {
       "description": "ORION alternative random/PSM mixed-negative checkpoint.",
       "model_backend": "orion",
       "checkpoint": "/path/to/orion_checkpoint/random_psm_2200/checkpoint.pt",
       "config": "/path/to/orion_checkpoint/random_psm_2200/resolved_config.local.json",
-      "threshold": 0.463
+      "threshold": 0.424
     }
   }
 }
