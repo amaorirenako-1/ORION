@@ -11,7 +11,7 @@ from .config import CheckpointSpec, write_resolved_run_config
 from .fasta import GenomeFasta
 from .model import load_predictor
 from .utils import ensure_dir, open_text, write_json
-from .windows import WindowRecord, iter_windows, resolve_regions
+from .windows import WindowRecord, count_candidate_windows, iter_windows, resolve_regions
 
 
 def _score_value(prediction: dict[str, float], score: str) -> float:
@@ -115,27 +115,35 @@ def scan_genome(args: Any, checkpoint_spec: CheckpointSpec) -> dict[str, Any]:
         fieldnames.append("sequence")
 
     total_predicted = 0
+    candidate_windows = count_candidate_windows(
+        regions,
+        window_size=args.window_size,
+        stride=args.stride,
+        include_terminal=args.include_terminal_window,
+    )
     batch: list[WindowRecord] = []
     with open_text(windows_path, "wt") as windows_handle:
         writer = csv.DictWriter(windows_handle, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
         writer.writeheader()
         bedgraph_writer = BedGraphWriter(bedgraph_path, args.track_bin_size or args.stride)
         try:
-            iterator = iter_windows(
-                genome,
-                regions,
-                window_size=args.window_size,
-                stride=args.stride,
-                max_n_frac=args.max_n_frac,
-                include_terminal=args.include_terminal_window,
-            )
-            for record in tqdm(iterator, desc="Scanning windows", unit="window"):
-                batch.append(record)
-                if len(batch) >= args.batch_size:
-                    total_predicted += _flush_batch(
-                        predictor, batch, args.score, writer, bedgraph_writer, genome, args.write_sequences
-                    )
-                    batch = []
+            with tqdm(total=candidate_windows, desc="Scanning windows", unit="window") as progress:
+                iterator = iter_windows(
+                    genome,
+                    regions,
+                    window_size=args.window_size,
+                    stride=args.stride,
+                    max_n_frac=args.max_n_frac,
+                    include_terminal=args.include_terminal_window,
+                    progress_callback=progress.update,
+                )
+                for record in iterator:
+                    batch.append(record)
+                    if len(batch) >= args.batch_size:
+                        total_predicted += _flush_batch(
+                            predictor, batch, args.score, writer, bedgraph_writer, genome, args.write_sequences
+                        )
+                        batch = []
             total_predicted += _flush_batch(
                 predictor, batch, args.score, writer, bedgraph_writer, genome, args.write_sequences
             )
@@ -158,7 +166,9 @@ def scan_genome(args: Any, checkpoint_spec: CheckpointSpec) -> dict[str, Any]:
         "max_n_frac": args.max_n_frac,
         "include_terminal_window": args.include_terminal_window,
         "regions": [region.name for region in regions],
+        "candidate_windows": candidate_windows,
         "predicted_windows": total_predicted,
+        "skipped_windows": candidate_windows - total_predicted,
         "bedgraph_intervals": bedgraph_writer.rows_written,
         "outputs": {
             "window_predictions": str(windows_path),

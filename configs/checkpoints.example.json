@@ -4,29 +4,29 @@
     "gc100_best": {
       "description": "ORION default high-confidence K562 checkpoint. Replace paths with released files on your server.",
       "model_backend": "orion",
-      "checkpoint": "/path/to/orion_checkpoint/gc100_best/best.pt",
-      "config": "/path/to/orion_checkpoint/gc100_best/resolved_config.json",
+      "checkpoint": "/path/to/orion_checkpoint/gc100_best/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/gc100_best/resolved_config.local.json",
       "threshold": 0.463
     },
     "gc100_2800": {
       "description": "ORION alternative GC-matched checkpoint.",
       "model_backend": "orion",
-      "checkpoint": "/path/to/orion_checkpoint/gc100_2800/step_2800.pt",
-      "config": "/path/to/orion_checkpoint/gc100_2800/resolved_config.json",
+      "checkpoint": "/path/to/orion_checkpoint/gc100_2800/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/gc100_2800/resolved_config.local.json",
       "threshold": 0.463
     },
     "random100_3200": {
       "description": "ORION alternative random-negative checkpoint.",
       "model_backend": "orion",
-      "checkpoint": "/path/to/orion_checkpoint/random100_3200/step_3200.pt",
-      "config": "/path/to/orion_checkpoint/random100_3200/resolved_config.json",
+      "checkpoint": "/path/to/orion_checkpoint/random100_3200/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/random100_3200/resolved_config.local.json",
       "threshold": 0.463
     },
     "random_psm_2200": {
       "description": "ORION alternative random/PSM mixed-negative checkpoint.",
       "model_backend": "orion",
-      "checkpoint": "/path/to/orion_checkpoint/random_psm_2200/step_2000.pt",
-      "config": "/path/to/orion_checkpoint/random_psm_2200/resolved_config.json",
+      "checkpoint": "/path/to/orion_checkpoint/random_psm_2200/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/random_psm_2200/resolved_config.local.json",
       "threshold": 0.463
     }
   }

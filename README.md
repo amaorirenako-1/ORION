@@ -39,6 +39,50 @@ The default `requirements.txt` pins `transformers<4.52` to reduce the risk of to
 
 If you are using the four final selected checkpoints, first follow [docs/CHECKPOINT_IMPORT_EN.md](docs/CHECKPOINT_IMPORT_EN.md) to import the checkpoint weights and matching `resolved_config.json` files into an independent model directory. This import process copies only released model artifacts and does not depend on earlier evaluation scripts, attention scripts, or old experiment configs.
 
+### Prepare the NTv3 Base Model
+
+The released ORION checkpoints contain LoRA/DoRA adapter weights and the classifier head, but not the full NTv3 650M backbone. The runtime host must prepare the NTv3 650M pretrained base model and point `model.name` in the config to that directory.
+
+Check the base model directory:
+
+```bash
+BASE_MODEL=/path/to/NTv3_650M_pre
+ls "$BASE_MODEL"
+```
+
+It should contain the HuggingFace model files, such as `config.json`, tokenizer files, custom modeling Python files, and model weight files.
+
+The public `resolved_config.json` uses a placeholder:
+
+```json
+"name": "/path/to/NTv3_650M_pre"
+```
+
+For local execution, generate `resolved_config.local.json` instead of modifying the released config in place:
+
+```bash
+MODEL_ROOT=/path/to/orion_checkpoint
+BASE_MODEL=/path/to/NTv3_650M_pre
+
+for cfg in "$MODEL_ROOT"/*/resolved_config.json; do
+  local_cfg="${cfg%.json}.local.json"
+  python - "$cfg" "$local_cfg" "$BASE_MODEL" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+src, dst, base_model = map(Path, sys.argv[1:])
+obj = json.loads(src.read_text())
+obj["model"]["name"] = str(base_model)
+obj["model"]["local_files_only"] = True
+dst.write_text(json.dumps(obj, indent=2) + "\n")
+print(dst)
+PY
+done
+```
+
+Then point `config` in `configs/checkpoints.local.json` to `resolved_config.local.json`.
+
 Copy and edit the example registry:
 
 ```bash
@@ -54,8 +98,8 @@ Example:
     "gc100_best": {
       "description": "Default high-confidence K562 checkpoint",
       "model_backend": "orion",
-      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json",
+      "checkpoint": "/path/to/orion_checkpoint/gc100_best/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/gc100_best/resolved_config.local.json",
       "threshold": 0.463
     }
   }
@@ -66,7 +110,7 @@ Fields:
 
 - `default_checkpoint`: label used when `--checkpoint-label` is omitted.
 - `checkpoint`: model weights file.
-- `config`: matching `resolved_config.json` or YAML.
+- `config`: local runtime config for the checkpoint. Prefer `resolved_config.local.json`, where `model.name` points to the local NTv3 650M base model path.
 - `threshold`: recorded calibrated classification threshold; peak calling does not use it by default.
 - `model_backend`: currently `orion`.
 
@@ -76,10 +120,10 @@ K562/hg19 example:
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \
@@ -91,7 +135,7 @@ Scan selected chromosomes:
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --sequence-names chr1,chr2,chr3 \
   --output-dir output/chr1_chr2_chr3
@@ -101,7 +145,7 @@ Scan selected regions:
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --regions chr1:0-10000000,chr2:5000000-12000000 \
   --output-dir output/regions
@@ -111,9 +155,9 @@ Use a checkpoint directly:
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
-  --checkpoint /data01/share/cxsy1/orion_checkpoint/gc100_best/best.pt \
-  --model-config /data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.json \
+  --fasta /path/to/reference/hg19.fa \
+  --checkpoint /path/to/orion_checkpoint/gc100_best/checkpoint.pt \
+  --model-config /path/to/orion_checkpoint/gc100_best/resolved_config.local.json \
   --output-dir output/direct_model
 ```
 
@@ -161,8 +205,8 @@ Run peak calling from any bedGraph:
 
 ```bash
 orion call-peaks \
-  --score-track /data01/share/cxsy1/orion/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
-  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best/peaks \
+  --score-track /path/to/orion_runs/k562_hg19_gc100_best/k562_gc100_best.prob.bedGraph \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best/peaks \
   --output-prefix k562_gc100_best \
   --method scipy \
   --peak-min-score 0.70 \
@@ -177,10 +221,10 @@ Run scoring and peak calling together:
 
 ```bash
 orion run \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best_run \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best_run \
   --output-prefix k562_gc100_best \
   --window-size 30000 \
   --stride 30000 \

@@ -26,19 +26,19 @@
 假设代码仓库放在：
 
 ```bash
-PROJECT=/data01/share/cxsy1/orion
+PROJECT=/path/to/orion
 ```
 
 建议把模型文件放在仓库外部，避免误提交大文件：
 
 ```bash
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+MODEL_ROOT=/path/to/orion_checkpoint
 ```
 
 最终结构：
 
 ```text
-/data01/share/cxsy1/orion/
+/path/to/orion/
   configs/
     checkpoints.example.json
     checkpoints.local.json        # 本地 registry，不提交
@@ -46,7 +46,7 @@ MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
   README_CN.md
   README_EN.md
 
-/data01/share/cxsy1/orion_checkpoint/
+/path/to/orion_checkpoint/
   gc100_best/
     checkpoint.pt
     resolved_config.json
@@ -65,8 +65,8 @@ MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
 ## 3. 创建模型目录
 
 ```bash
-PROJECT=/data01/share/cxsy1/orion
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+PROJECT=/path/to/orion
+MODEL_ROOT=/path/to/orion_checkpoint
 
 mkdir -p "$MODEL_ROOT/gc100_best"
 mkdir -p "$MODEL_ROOT/gc100_2800"
@@ -76,43 +76,51 @@ mkdir -p "$MODEL_ROOT/random_psm_2200"
 
 ## 4. 导入四个选定 checkpoint
 
+先设置每类 checkpoint 对应的训练输出目录，下面的路径只是占位示例：
+
+```bash
+SOURCE_GC100=/path/to/gc100_training_output
+SOURCE_RANDOM100=/path/to/random100_training_output
+SOURCE_RANDOM_PSM=/path/to/random_psm_training_output
+```
+
 ### 4.1 gc100_best
 
 ```bash
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/checkpoints/best.pt \
+cp "$SOURCE_GC100/checkpoints/best.pt" \
   "$MODEL_ROOT/gc100_best/checkpoint.pt"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/resolved_config.json \
+cp "$SOURCE_GC100/resolved_config.json" \
   "$MODEL_ROOT/gc100_best/resolved_config.json"
 ```
 
 ### 4.2 gc100_2800
 
 ```bash
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/checkpoints/step_2800.pt \
+cp "$SOURCE_GC100/checkpoints/step_2800.pt" \
   "$MODEL_ROOT/gc100_2800/checkpoint.pt"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/resolved_config.json \
+cp "$SOURCE_GC100/resolved_config.json" \
   "$MODEL_ROOT/gc100_2800/resolved_config.json"
 ```
 
 ### 4.3 random100_3200
 
 ```bash
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random100/checkpoints/step_3200.pt \
+cp "$SOURCE_RANDOM100/checkpoints/step_3200.pt" \
   "$MODEL_ROOT/random100_3200/checkpoint.pt"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random100/resolved_config.json \
+cp "$SOURCE_RANDOM100/resolved_config.json" \
   "$MODEL_ROOT/random100_3200/resolved_config.json"
 ```
 
 ### 4.4 random_psm_2200
 
 ```bash
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random50_psm50/checkpoints/step_2200.pt \
+cp "$SOURCE_RANDOM_PSM/checkpoints/step_2200.pt" \
   "$MODEL_ROOT/random_psm_2200/checkpoint.pt"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random50_psm50/resolved_config.json \
+cp "$SOURCE_RANDOM_PSM/resolved_config.json" \
   "$MODEL_ROOT/random_psm_2200/resolved_config.json"
 ```
 
@@ -137,7 +145,7 @@ cat "$MODEL_ROOT/checksums.sha256"
 这是占位符，不能直接运行。运行端需要准备 NTv3 650M 预训练基模：
 
 ```bash
-BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+BASE_MODEL=/path/to/NTv3_650M_pre
 ls "$BASE_MODEL"
 ```
 
@@ -153,8 +161,8 @@ modeling_*.py
 然后为每个 checkpoint 生成本地运行版 config：
 
 ```bash
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
-BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+MODEL_ROOT=/path/to/orion_checkpoint
+BASE_MODEL=/path/to/NTv3_650M_pre
 
 for cfg in "$MODEL_ROOT"/*/resolved_config.json; do
   local_cfg="${cfg%.json}.local.json"
@@ -193,29 +201,29 @@ cp configs/checkpoints.example.json configs/checkpoints.local.json
     "gc100_best": {
       "description": "Selected default checkpoint from final K562 811 comparison.",
       "model_backend": "orion",
-      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_best/checkpoint.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_best/resolved_config.local.json",
+      "checkpoint": "/path/to/orion_checkpoint/gc100_best/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/gc100_best/resolved_config.local.json",
       "threshold": 0.463
     },
     "gc100_2800": {
       "description": "GC-matched checkpoint at step 2800.",
       "model_backend": "orion",
-      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/gc100_2800/checkpoint.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/gc100_2800/resolved_config.local.json",
+      "checkpoint": "/path/to/orion_checkpoint/gc100_2800/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/gc100_2800/resolved_config.local.json",
       "threshold": 0.463
     },
     "random100_3200": {
       "description": "Random-negative checkpoint at step 3200.",
       "model_backend": "orion",
-      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/random100_3200/checkpoint.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/random100_3200/resolved_config.local.json",
+      "checkpoint": "/path/to/orion_checkpoint/random100_3200/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/random100_3200/resolved_config.local.json",
       "threshold": 0.463
     },
     "random_psm_2200": {
       "description": "Random/PSM mixed-negative checkpoint at step 2200.",
       "model_backend": "orion",
-      "checkpoint": "/data01/share/cxsy1/orion_checkpoint/random_psm_2200/checkpoint.pt",
-      "config": "/data01/share/cxsy1/orion_checkpoint/random_psm_2200/resolved_config.local.json",
+      "checkpoint": "/path/to/orion_checkpoint/random_psm_2200/checkpoint.pt",
+      "config": "/path/to/orion_checkpoint/random_psm_2200/resolved_config.local.json",
       "threshold": 0.463
     }
   }
@@ -245,7 +253,7 @@ orion --version
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
   --regions chr1:900000-1500000 \
@@ -270,7 +278,7 @@ cat output/smoke_gc100_best/smoke_gc100_best.scan_summary.json
 ```bash
 for ckpt in gc100_best gc100_2800 random100_3200 random_psm_2200; do
   orion predict \
-    --fasta /home/cxsy1/reference/hg19.fa \
+    --fasta /path/to/reference/hg19.fa \
     --checkpoint-registry configs/checkpoints.local.json \
     --checkpoint-label "$ckpt" \
     --regions chr1:900000-1500000 \
@@ -307,10 +315,10 @@ orion call-peaks \
 
 ```bash
 orion run \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
-  --output-dir /data01/share/cxsy1/orion/k562_hg19_gc100_best \
+  --output-dir /path/to/orion_runs/k562_hg19_gc100_best \
   --output-prefix k562_hg19_gc100_best \
   --window-size 30000 \
   --stride 30000 \
@@ -335,9 +343,9 @@ orion run \
 如果用 GitHub Release 上传模型包：
 
 ```bash
-cd /data01/share/cxsy1
-tar -czf orion_final4_811_models_v0.1.0.tar.gz final4_811
-sha256sum orion_final4_811_models_v0.1.0.tar.gz
+cd /path/to/model_release_parent
+tar -czf orion_models_v1.0.0.tar.gz orion_checkpoint
+sha256sum orion_models_v1.0.0.tar.gz
 ```
 
 Release notes 中记录：

@@ -24,19 +24,19 @@ ORION checkpoints do not include the full NTv3 650M pretrained backbone. The run
 ## Recommended Layout
 
 ```bash
-PROJECT=/data01/share/cxsy1/orion
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+PROJECT=/path/to/orion
+MODEL_ROOT=/path/to/orion_checkpoint
 ```
 
 Keep model files outside the Git working tree:
 
 ```text
-/data01/share/cxsy1/orion/
+/path/to/orion/
   configs/checkpoints.example.json
   configs/checkpoints.local.json        # local registry, do not commit
   src/
 
-/data01/share/cxsy1/orion_checkpoint/
+/path/to/orion_checkpoint/
   gc100_best/checkpoint.pt
   gc100_best/resolved_config.json
   gc100_2800/checkpoint.pt
@@ -51,8 +51,8 @@ Keep model files outside the Git working tree:
 ## Import Commands
 
 ```bash
-PROJECT=/data01/share/cxsy1/orion
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
+PROJECT=/path/to/orion
+MODEL_ROOT=/path/to/orion_checkpoint
 
 mkdir -p "$MODEL_ROOT/gc100_best"
 mkdir -p "$MODEL_ROOT/gc100_2800"
@@ -61,24 +61,28 @@ mkdir -p "$MODEL_ROOT/random_psm_2200"
 ```
 
 ```bash
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/checkpoints/best.pt \
+SOURCE_GC100=/path/to/gc100_training_output
+SOURCE_RANDOM100=/path/to/random100_training_output
+SOURCE_RANDOM_PSM=/path/to/random_psm_training_output
+
+cp "$SOURCE_GC100/checkpoints/best.pt" \
   "$MODEL_ROOT/gc100_best/checkpoint.pt"
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/resolved_config.json \
+cp "$SOURCE_GC100/resolved_config.json" \
   "$MODEL_ROOT/gc100_best/resolved_config.json"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/checkpoints/step_2800.pt \
+cp "$SOURCE_GC100/checkpoints/step_2800.pt" \
   "$MODEL_ROOT/gc100_2800/checkpoint.pt"
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_dora_119k_warm_r16_811_gc100/resolved_config.json \
+cp "$SOURCE_GC100/resolved_config.json" \
   "$MODEL_ROOT/gc100_2800/resolved_config.json"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random100/checkpoints/step_3200.pt \
+cp "$SOURCE_RANDOM100/checkpoints/step_3200.pt" \
   "$MODEL_ROOT/random100_3200/checkpoint.pt"
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random100/resolved_config.json \
+cp "$SOURCE_RANDOM100/resolved_config.json" \
   "$MODEL_ROOT/random100_3200/resolved_config.json"
 
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random50_psm50/checkpoints/step_2200.pt \
+cp "$SOURCE_RANDOM_PSM/checkpoints/step_2200.pt" \
   "$MODEL_ROOT/random_psm_2200/checkpoint.pt"
-cp /data01/share/cxsy1/evo2/outputs_811/ntv3_650m_lora_119k_warm_r16_811_random50_psm50/resolved_config.json \
+cp "$SOURCE_RANDOM_PSM/resolved_config.json" \
   "$MODEL_ROOT/random_psm_2200/resolved_config.json"
 ```
 
@@ -101,7 +105,7 @@ The released `resolved_config.json` should stay sanitized and may contain:
 That placeholder is not directly runnable. Prepare the NTv3 650M base model on the runtime host:
 
 ```bash
-BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+BASE_MODEL=/path/to/NTv3_650M_pre
 ls "$BASE_MODEL"
 ```
 
@@ -110,8 +114,8 @@ The directory should contain HuggingFace model files such as `config.json`, toke
 Generate local runtime configs:
 
 ```bash
-MODEL_ROOT=/data01/share/cxsy1/orion_checkpoint
-BASE_MODEL=/data01/share/cxsy1/hf_models/NTv3_650M_pre
+MODEL_ROOT=/path/to/orion_checkpoint
+BASE_MODEL=/path/to/NTv3_650M_pre
 
 for cfg in "$MODEL_ROOT"/*/resolved_config.json; do
   local_cfg="${cfg%.json}.local.json"
@@ -154,7 +158,7 @@ orion --version
 
 ```bash
 orion predict \
-  --fasta /home/cxsy1/reference/hg19.fa \
+  --fasta /path/to/reference/hg19.fa \
   --checkpoint-registry configs/checkpoints.local.json \
   --checkpoint-label gc100_best \
   --regions chr1:900000-1500000 \
@@ -188,9 +192,9 @@ Publish code and models separately:
 Create a model package:
 
 ```bash
-cd /data01/share/cxsy1
-tar -czf orion_final4_811_models_v0.1.0.tar.gz final4_811
-sha256sum orion_final4_811_models_v0.1.0.tar.gz
+cd /path/to/model_release_parent
+tar -czf orion_models_v1.0.0.tar.gz orion_checkpoint
+sha256sum orion_models_v1.0.0.tar.gz
 ```
 
 Release notes should record the tool tag, model package checksum, checkpoint labels, recommended default checkpoint `gc100_best`, window size `30000 bp`, default score `prob`, and strict peak score cutoff `0.70`.

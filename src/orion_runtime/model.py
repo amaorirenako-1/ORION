@@ -15,7 +15,7 @@ def create_backbone(model_config: ModelConfig, lora_config: LoraConfig) -> torch
         return Evo2FrozenBackbone(model_config)
     if family in {"caduceus", "ntv3"}:
         return HFSequenceBackbone(model_config, lora_config)
-    raise ValueError(f"Unsupported P0 model family: {model_config.family}")
+    raise ValueError(f"Unsupported ORION model family: {model_config.family}")
 
 
 class BinaryHead(torch.nn.Module):

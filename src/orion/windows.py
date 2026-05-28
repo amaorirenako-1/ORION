@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Callable, Iterable, Iterator
 
 from .fasta import GenomeFasta
 from .utils import parse_csv_arg, read_lines, unique_in_order
@@ -81,6 +81,19 @@ def _window_starts(region: Region, window_size: int, stride: int, include_termin
     return starts
 
 
+def count_candidate_windows(
+    regions: Iterable[Region],
+    window_size: int,
+    stride: int,
+    include_terminal: bool = True,
+) -> int:
+    if window_size <= 0:
+        raise ValueError("--window-size must be positive.")
+    if stride <= 0:
+        raise ValueError("--stride must be positive.")
+    return sum(len(_window_starts(region, window_size, stride, include_terminal)) for region in regions)
+
+
 def iter_windows(
     genome: GenomeFasta,
     regions: Iterable[Region],
@@ -88,6 +101,7 @@ def iter_windows(
     stride: int,
     max_n_frac: float,
     include_terminal: bool = True,
+    progress_callback: Callable[[int], None] | None = None,
 ) -> Iterator[WindowRecord]:
     if window_size <= 0:
         raise ValueError("--window-size must be positive.")
@@ -95,12 +109,15 @@ def iter_windows(
         raise ValueError("--stride must be positive.")
     for region in regions:
         for start in _window_starts(region, window_size, stride, include_terminal):
-            end = start + window_size
-            sequence = genome.fetch(region.chrom, start, end)
-            if len(sequence) != window_size:
-                continue
-            n_fraction = sequence.count("N") / float(window_size)
-            if n_fraction > max_n_frac:
-                continue
-            yield WindowRecord(region.chrom, start, end, sequence, n_fraction)
-
+            try:
+                end = start + window_size
+                sequence = genome.fetch(region.chrom, start, end)
+                if len(sequence) != window_size:
+                    continue
+                n_fraction = sequence.count("N") / float(window_size)
+                if n_fraction > max_n_frac:
+                    continue
+                yield WindowRecord(region.chrom, start, end, sequence, n_fraction)
+            finally:
+                if progress_callback is not None:
+                    progress_callback(1)
